@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-
+import { navigate } from 'expo-router/build/global-state/routing';
+import EditProfileModal from '@/components/EditProfileModal';
+import { apiClient, User as ApiUser } from '@/services/api';
 // Errors - in the user schema, excluding refresh tokens is also exclusing attributes after it, i have changed the schema but the old one is still used untill the atlas is changed
 import {
   View,
@@ -117,7 +119,7 @@ const achievements: Achievement[] = [
 ];
 
 export default function ProfileScreen() {
-  const { user, refreshProfile } = useAuth();
+  const { user, logout, updateProfile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true); // new
   const { role } = useRole();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -125,6 +127,17 @@ export default function ProfileScreen() {
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleSaveProfile = async (updates: Partial<ApiUser>) => {
+    const result = await updateProfile(updates);
+
+    if (result.success) {
+      console.log('Profile updated successfully ✅');
+    } else {
+      console.error('Profile update failed ❌:', result.message);
+      // optionally show a toast/alert
+    }
+  };
 
   const cardScale = useSharedValue(1);
   const achievementOpacity = useSharedValue(0);
@@ -225,15 +238,13 @@ export default function ProfileScreen() {
       icon: <LogOut size={20} color="#FF3B30" strokeWidth={2} />,
       type: 'action',
       color: '#FF3B30',
-      onPress: () =>
-        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Sign Out',
-            style: 'destructive',
-            onPress: () => console.log('Sign out'),
-          },
-        ]),
+      onPress: () => {
+        console.log('Sign out');
+        if (window.confirm('Do you want to sign out?')) {
+          logout();
+          navigate('/auth/login');
+        }
+      },
     },
   ];
   if (loading || !user) {
@@ -493,6 +504,18 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </ScrollView>
+      <EditProfileModal
+        visible={isEditing}
+        user={{
+          name: user.profile.firstName + user.profile.lastName,
+          email: user.email,
+          phone: user.phone,
+          bio: user.profile.bio,
+          location: user.location?.address || '',
+        }}
+        onClose={() => setIsEditing(false)}
+        onSave={handleSaveProfile}
+      />
     </SafeAreaView>
   );
 }
